@@ -1,0 +1,9 @@
+cd src/fn-dark-signal-decipherer
+npm install
+cd ../fn-message-translator
+npm install
+cd ../fn-observation-ingest
+npm install
+cd ../fn-signal-classifier
+npm install
+cd ..

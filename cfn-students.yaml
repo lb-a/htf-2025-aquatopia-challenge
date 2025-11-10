@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SAM Template for the i8c Hack The Future 2025 Challenge (Team <TeamName>)
+
+Globals:
+  Function:
+    Timeout: 10
+    Tracing: Active
+
+Parameters:
+  TeamName:
+    Default: <TEAMNAME>
+    Type: String
+
+Resources:
+  # Lambda Challenge 1
+  Challenge1Lambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: HTF25-${TeamName}-SonarSignalClassifier
+      CodeUri: src/fn-signal-classifier/
+      Handler: lambda.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          TeamName:
+            Ref: TeamName
+          SNSArn:
+            Ref: Challenge2SNS
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action: events:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+          - Effect: Allow
+            Action: sns:Publish
+            Resource:
+              - Ref: Challenge2SNS
+      Tags:
+        Owner:
+          Ref: TeamName
+        Project: HTF25
+        Service: Lambda
+
+  # Challenge 1 Lambda Trigger
+  EventBridgeToLambdaChallenge1Rule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Fn::ImportValue: HTF25-i8c-Stack-EventBridgeBusName
+      State: ENABLED
+      EventPattern:
+        source:
+          - HTF25
+        detail-type:
+          - Fn::Sub: ToBeUsedBy-${TeamName}
+      Targets:
+        - Arn:
+            Fn::GetAtt: [ Challenge1Lambda, Arn ]
+          Id: Challenge1Lambda
+  
+  # Challenge 1 Lambda Invoke Permissions
+  PermissionForEventBridgeRuleToInvokeChallenge1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: Challenge1Lambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt: [ EventBridgeToLambdaChallenge1Rule, Arn ]
+
+  # SNS
+  Challenge2SNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName:
+       Fn::Sub: HTF25-${TeamName}
+      #TopicName:
+      #  Fn::Sub: HTF25-${TeamName}
+      Subscription:
+        - Endpoint:
+            Fn::GetAtt: [ Challenge2Lambda, Arn ]
+          Protocol: Lambda
+        - Endpoint:
+            Fn::GetAtt: [ Challenge4Lambda, Arn ]
+          Protocol: Lambda
+      Tags:
+        - Key: Owner
+          Value:
+            Ref: TeamName
+        - Key: Project
+          Value: HTF25
+        - Key: Service
+          Value: SNS
+
+  # Challenge 2 Lambda
+  Challenge2Lambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: HTF25-${TeamName}-SonarObservationIngest
+      CodeUri: src/fn-observation-ingest/
+      Handler: lambda.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          TeamName:
+            Ref: TeamName
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action: events:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+      Tags:
+        Owner:
+          Ref: TeamName
+        Project: HTF25
+        Service: Lambda
+
+  # Challenge 2 Lambda Invoker
+  SNSPermissionToInvokeChallenge2Lambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: Challenge2Lambda
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: Challenge2SNS
+
+  # Challenge 2 DynamoDB
+
+  # Challenge 4 Lambda
+  Challenge4Lambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: HTF25-${TeamName}-DarkSignalDecipherer
+      CodeUri: src/fn-dark-signal-decipherer/
+      Handler: lambda.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          TeamName:
+            Ref: TeamName
+          SQSQueue:
+            Ref: Challenge4SQS
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action: events:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+          - Effect: Allow
+            Action: sqs:SendMessage
+            Resource:
+              - Fn::GetAtt: [ Challenge4SQS, Arn ]
+      Tags:
+        Owner:
+          Ref: TeamName
+        Project: HTF25
+        Service: Lambda
+
+  SNSPermissionToInvokeChallenge4Lambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: Challenge4Lambda
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: Challenge2SNS
+
+  # Challenge 4 SQS
+  Challenge4SQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName:
+        Fn::Sub: HTF25-${TeamName}-SQS
+      # Tags:
+      #   Owner:
+      #     Ref: TeamName
+      #   Project: HTF25
+      #   Service: SQS
+
+  # Challenge 5 Lambda
+  Challenge5Lambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: HTF25-${TeamName}-MessageTranslator
+      CodeUri: src/fn-message-translator/
+      Handler: lambda.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          TeamName:
+            Ref: TeamName
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action: events:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'xray:PutTraceSegments'
+              - 'xray:PutTelemetryRecords'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - sqs:*
+            Resource:
+              - Fn::GetAtt: [ Challenge4SQS, Arn ]
+          - Effect: Allow
+            Action:
+              - comprehend:DetectDominantLanguage
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - translate:TranslateText
+            Resource: '*'
+      Tags:
+        Owner:
+          Ref: TeamName
+        Project: HTF25
+        Service: Lambda
+
+  Challenge5LambdaSQSTrigger: # Sends the messages to the correct Function
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt: [ Challenge4SQS, Arn ]
+      FunctionName:
+        Fn::GetAtt: [ Challenge5Lambda, Arn ]
