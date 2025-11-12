@@ -3,6 +3,8 @@ title: "HTF25 Aquatopia Challenge"
 author: MaranzasDiBrugge
 ---
 
+<!-- alignment: center -->
+
 # HTF25 Aquatopia Challenge
 ## The Serverless Quest Beneath the Surface
 
@@ -10,9 +12,22 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
+<!-- alignment: center -->
+
+Who are we
+---
+International "Students" from Howest
+
+Teo
+Leo
+
+<!-- end_slide -->
+
+<!-- alignment: center -->
+
 # What We Built
 
-- **5 Lambda Functions** processing sonar signals
+- **5 Lambda Functions (more or less)** processing sonar signals
 - **Event-Driven Architecture** with EventBridge, SNS, SQS
 - **Multi-Storage System** (DynamoDB + OpenSearch)
 - **Real-time Translation** and Discord integration
@@ -21,7 +36,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# All Levels Completed ✅
+# All Levels Completed 
 
 - Level 1: Signal Classifier
 - Level 2-3: Observation Ingest
@@ -30,7 +45,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# What Went Well 🎉
+# What Went Well 
 
 <!-- incremental_lists: true -->
 
@@ -47,7 +62,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# The Challenges 🚧
+# The Challenges 
 
 <!-- incremental_lists: true -->
 
@@ -72,7 +87,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# Biggest Surprises 🤯
+# Biggest Surprises 
 
 <!-- incremental_lists: true -->
 
@@ -92,7 +107,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# What Didn't Go Well ❌
+# What Didn't Go Well 
 
 <!-- incremental_lists: true -->
 
@@ -116,7 +131,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# Lessons Learned 📚
+# Lessons Learned 
 
 <!-- incremental_lists: true -->
 
@@ -143,7 +158,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# What We'd Do Differently 🔄
+# What We'd Do Differently
 
 <!-- incremental_lists: true -->
 
@@ -160,7 +175,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# The Numbers 📊
+# The Numbers 
 
 <!-- column_layout: [1, 1] -->
 
@@ -180,7 +195,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# Team Reflection 👥
+# Team Reflection 
 
 <!-- incremental_lists: true -->
 
@@ -198,15 +213,15 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# The Final Result 🏆
+# The Final Result 
 
-✅ **All 5 Levels Completed**
-✅ **Fully Functional Pipeline**
-✅ **Successfully Deployed**
+**All 5 Levels Completed**
+**Fully Functional Pipeline**
+**Successfully Deployed**
 
 <!-- end_slide -->
 
-# Advice for Future Teams 💬
+# Advice for Future Teams
 
 <!-- incremental_lists: true -->
 
@@ -226,7 +241,7 @@ author: MaranzasDiBrugge
 
 <!-- end_slide -->
 
-# Final Thoughts 💭
+# Final Thoughts
 
 **Journey of learning and problem-solving**
 
@@ -236,7 +251,7 @@ Built a complete serverless system, integrated multiple AWS services, delivered 
 
 <!-- end_slide -->
 
-# Questions? ❓
+# Questions?
 
 **Team MaranzasDiBrugge**
 
