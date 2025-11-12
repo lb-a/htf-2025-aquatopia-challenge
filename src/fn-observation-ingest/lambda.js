@@ -94,14 +94,14 @@ async function insertIntoOpenSearch(messageId, type, data) {
     
     try {
         await tryInsertToIndex(indexName, messageId, type, data);
-        console.log('✅ Successfully wrote to index:', indexName);
+        console.log('Successfully wrote to index:', indexName);
     } catch (error) {
         if (error.meta && error.meta.statusCode === 403) {
-            console.error('❌ OpenSearch 403 Forbidden - Access denied');
-            console.error('📝 Index might not exist or Lambda needs aoss:CreateIndex permission');
-            console.error('🔗 Collection: s6tkjpxuugo2q82i4z3d');
-            console.error('📂 Index: ' + indexName);
-            console.error('📊 Alert data (would have been indexed):', JSON.stringify({messageId, type, data}));
+            console.error('OpenSearch 403 Forbidden - Access denied');
+            console.error('Index might not exist or Lambda needs aoss:CreateIndex permission');
+            console.error('Collection: s6tkjpxuugo2q82i4z3d');
+            console.error('Index: ' + indexName);
+            console.error('Alert data (would have been indexed):', JSON.stringify({messageId, type, data}));
             // Don't throw - allow Lambda to succeed even if OpenSearch fails
             return;
         }

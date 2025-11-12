@@ -37,32 +37,24 @@ exports.handler = async (event) => {
         if (snsMessage.type === 'dark-signal' && snsMessage.originalPayload && snsMessage.originalPayload.data) {
             try {
                 const decipheredText = await decipherMsg(snsMessage.originalPayload.data, keys);
-                console.log('✅ Deciphered message:', decipheredText);
+                console.log('Deciphered message:', decipheredText);
                 
                 // Detect language and translate to English
-                let language = 'unknown';
-                let translatedText = decipheredText;
+                const language = await detectLanguage(decipheredText);
+                console.log('Detected language:', language);
                 
-                try {
-                    language = await detectLanguage(decipheredText);
-                    console.log('🌍 Detected language:', language);
-                    
-                    if (language !== 'en') {
-                        console.log('🔄 Translating to English...');
-                        translatedText = await translateToEnglish(decipheredText, language);
-                        console.log('✅ Translated message:', translatedText);
-                    } else {
-                        console.log('ℹ️  Message is already in English');
-                    }
-                } catch (translationError) {
-                    console.error('⚠️  Translation failed (but decryption worked):', translationError.message);
-                    console.log('📝 Deciphered message (not translated):', decipheredText);
-                    // Continue with original message if translation fails
+                let translatedText = decipheredText;
+                if (language !== 'en') {
+                    console.log('Translating to English...');
+                    translatedText = await translateToEnglish(decipheredText, language);
+                    console.log('Translated message:', translatedText);
+                } else {
+                    console.log('Message is already in English');
                 }
                 
                 await sendToSQS(translatedText, decipheredText, language);
             } catch (error) {
-                console.error('❌ Error processing dark signal:', error);
+                console.error('Error processing dark signal:', error);
             }
         }
     }
@@ -173,12 +165,12 @@ async function sendToSQS(translatedMessage, originalMessage, language) {
     try {
         // Setup SendMessageCommand and Execute
         const response = await sqsClient.send(new SendMessageCommand(params));
-        console.log('✅ SQS Response:', response);
+        console.log('SQS Response:', response);
         return response;
     } catch (error) {
         // If SQS send fails due to permissions, log the message so we can see it worked
-        console.error('❌ SQS send failed (permission issue)');
-        console.error('📝 Message that would have been sent:', JSON.stringify(messageToSend, null, 2));
+        console.error('SQS send failed (permission issue)');
+        console.error('Message that would have been sent:', JSON.stringify(messageToSend, null, 2));
         // Don't throw - we want to see that the decryption and translation worked
     }
 }

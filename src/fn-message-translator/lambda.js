@@ -99,16 +99,16 @@ async function sendToWebhook(message, teamName, originalLanguage) {
     
     // Skip if webhook is not configured
     if (webhookUrl === "YOUR_DISCORD_WEBHOOK_URL_HERE") {
-        console.log('⚠️  WEBHOOK NOT CONFIGURED - Skipping webhook POST');
-        console.log('📝 To configure: Set WEBHOOK_URL environment variable or update lambda.js');
-        console.log('💬 Discord webhook guide: https://support.discord.com/hc/en-us/articles/228383668');
+        console.log('WEBHOOK NOT CONFIGURED - Skipping webhook POST');
+        console.log('To configure: Set WEBHOOK_URL environment variable or update lambda.js');
+        console.log('Discord webhook guide: https://support.discord.com/hc/en-us/articles/228383668');
         return;
     }
     
     // Create Discord-formatted message
     const discordPayload = {
         embeds: [{
-            title: "🌊 Dark Signal Decoded",
+            title: "Dark Signal Decoded",
             description: message,
             color: 3447003, // Blue color
             fields: [
