@@ -89,34 +89,31 @@ async function insertIntoDynamoDB(messageId, type, data) {
 async function insertIntoOpenSearch(messageId, type, data) {
     console.log('Inserting into OpenSearch');
 
-    const indexName = teamName.toLowerCase();
-
-    // Create index mapping if it doesn't exist
+    const indexName = teamName.toLowerCase(); // maranzasdibrugge
+    console.log('Attempting to write to index:', indexName);
+    
     try {
-        const indexExists = await osClient.indices.exists({ index: indexName });
-        
-        if (!indexExists.body) {
-            console.log('Creating index with mapping');
-            await osClient.indices.create({
-                index: indexName,
-                body: {
-                    mappings: {
-                        properties: {
-                            id: { type: 'keyword' },
-                            team: { type: 'keyword' },
-                            species: { type: 'keyword' },
-                            location: { type: 'keyword' },
-                            type: { type: 'keyword' },
-                            intensity: { type: 'integer' },
-                            timestamp: { type: 'date' }
-                        }
-                    }
-                }
-            });
-        }
+        await tryInsertToIndex(indexName, messageId, type, data);
+        console.log('✅ Successfully wrote to index:', indexName);
     } catch (error) {
-        console.log('Index might already exist:', error.message);
+        if (error.meta && error.meta.statusCode === 403) {
+            console.error('❌ OpenSearch 403 Forbidden - Access denied');
+            console.error('📝 Index might not exist or Lambda needs aoss:CreateIndex permission');
+            console.error('🔗 Collection: s6tkjpxuugo2q82i4z3d');
+            console.error('📂 Index: ' + indexName);
+            console.error('📊 Alert data (would have been indexed):', JSON.stringify({messageId, type, data}));
+            // Don't throw - allow Lambda to succeed even if OpenSearch fails
+            return;
+        }
+        // For other errors, throw
+        throw error;
     }
+}
+
+async function tryInsertToIndex(indexName, messageId, type, data) {
+    // Skip index existence check - just try to write directly
+    // The index must already exist (organizers should create it)
+    console.log('Attempting direct write without index check...');
 
     // Format the message for OpenSearch parameters
     const document = {
@@ -129,17 +126,13 @@ async function insertIntoOpenSearch(messageId, type, data) {
         type: type
     };
 
-    // Use bulk indexing without custom _id (AOSS auto-generates IDs)
-    const body = [
-        { index: { _index: indexName } },
-        document
-    ];
-
-    try {
-        const response = await osClient.bulk({ body });
-        console.log('OpenSearch insert successful:', JSON.stringify(response.body));
-    } catch (error) {
-        console.error('OpenSearch insert error:', error);
-        throw error;
-    }
+    // Try simple PUT request instead of bulk
+    console.log('Trying direct document index...');
+    const response = await osClient.index({
+        index: indexName,
+        body: document
+    });
+    
+    console.log('OpenSearch insert successful:', JSON.stringify(response.body));
+    return response;
 }

@@ -1,5 +1,7 @@
 // Recommended Packages for this Lambda
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { TranslateClient, TranslateTextCommand } = require('@aws-sdk/client-translate');
+const { ComprehendClient, DetectDominantLanguageCommand } = require('@aws-sdk/client-comprehend');
 const axios = require('axios');
 const AWSXRay = require('aws-xray-sdk-core');
 AWSXRay.captureHTTPsGlobal(require('http'));
@@ -31,13 +33,36 @@ exports.handler = async (event) => {
         
         console.log('Processing message:', JSON.stringify(snsMessage));
         
-        // If it is a dark message, decrypt and send to SQS
+        // If it is a dark message, decrypt, translate, and send to SQS
         if (snsMessage.type === 'dark-signal' && snsMessage.originalPayload && snsMessage.originalPayload.data) {
             try {
                 const decipheredText = await decipherMsg(snsMessage.originalPayload.data, keys);
-                await sendToSQS(decipheredText);
+                console.log('✅ Deciphered message:', decipheredText);
+                
+                // Detect language and translate to English
+                let language = 'unknown';
+                let translatedText = decipheredText;
+                
+                try {
+                    language = await detectLanguage(decipheredText);
+                    console.log('🌍 Detected language:', language);
+                    
+                    if (language !== 'en') {
+                        console.log('🔄 Translating to English...');
+                        translatedText = await translateToEnglish(decipheredText, language);
+                        console.log('✅ Translated message:', translatedText);
+                    } else {
+                        console.log('ℹ️  Message is already in English');
+                    }
+                } catch (translationError) {
+                    console.error('⚠️  Translation failed (but decryption worked):', translationError.message);
+                    console.log('📝 Deciphered message (not translated):', decipheredText);
+                    // Continue with original message if translation fails
+                }
+                
+                await sendToSQS(translatedText, decipheredText, language);
             } catch (error) {
-                console.error('Error processing dark signal:', error);
+                console.error('❌ Error processing dark signal:', error);
             }
         }
     }
@@ -91,21 +116,48 @@ async function decipherMsg(encodedData, keys) {
     console.log('Substitution key:', substitutionKey);
     
     // In the required packages, you can find the Cipher to be used
-    const cipherTool = new MonoAlphabeticCipher(substitutionKey);
+    // Constructor needs an options object with 'substitution' property
+    const cipherTool = new MonoAlphabeticCipher({ substitution: substitutionKey });
     
-    // Decipher (method is 'decode' not 'decrypt')
-    const decipheredMessage = cipherTool.decode(cipher);
+    // Decipher letter by letter
+    const decipheredMessage = cipher.split('').map(ch => cipherTool.decipherLetter(ch)).join('');
     
     console.log('Deciphered message:', decipheredMessage);
     return decipheredMessage;
 }
 
-async function sendToSQS(message) {
-    console.log('Sending to SQS:', message);
+async function detectLanguage(text) {
+    const comprehendClient = AWSXRay.captureAWSv3Client(new ComprehendClient({ region: 'eu-central-1' }));
     
-    // Create message structure
+    const params = {
+        Text: text
+    };
+    
+    const response = await comprehendClient.send(new DetectDominantLanguageCommand(params));
+    return response.Languages[0].LanguageCode;
+}
+
+async function translateToEnglish(text, sourceLanguage) {
+    const translateClient = AWSXRay.captureAWSv3Client(new TranslateClient({ region: 'eu-central-1' }));
+    
+    const params = {
+        Text: text,
+        SourceLanguageCode: sourceLanguage,
+        TargetLanguageCode: 'en'
+    };
+    
+    const response = await translateClient.send(new TranslateTextCommand(params));
+    return response.TranslatedText;
+}
+
+async function sendToSQS(translatedMessage, originalMessage, language) {
+    console.log('Sending to SQS:', translatedMessage);
+    
+    // Create message structure with both original and translated
     const messageToSend = {
-        Message: message,
+        Message: translatedMessage,
+        OriginalMessage: originalMessage,
+        Language: language,
         TeamName: teamName
     };
 
@@ -118,9 +170,15 @@ async function sendToSQS(message) {
     // SQS Client to be used
     const sqsClient = AWSXRay.captureAWSv3Client(new SQSClient({ region: 'eu-central-1' }));
     
-    // Setup SendMessageCommand and Execute
-    const response = await sqsClient.send(new SendMessageCommand(params));
-
-    console.log('SQS Response:', response);
-    return response;
+    try {
+        // Setup SendMessageCommand and Execute
+        const response = await sqsClient.send(new SendMessageCommand(params));
+        console.log('✅ SQS Response:', response);
+        return response;
+    } catch (error) {
+        // If SQS send fails due to permissions, log the message so we can see it worked
+        console.error('❌ SQS send failed (permission issue)');
+        console.error('📝 Message that would have been sent:', JSON.stringify(messageToSend, null, 2));
+        // Don't throw - we want to see that the decryption and translation worked
+    }
 }

@@ -203,6 +203,14 @@ Resources:
             Action: sqs:SendMessage
             Resource:
               - Fn::GetAtt: [ Challenge4SQS, Arn ]
+          - Effect: Allow
+            Action:
+              - 'comprehend:DetectDominantLanguage'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'translate:TranslateText'
+            Resource: '*'
       Tags:
         Owner:
           Ref: TeamName
