@@ -7,8 +7,8 @@ AWSXRay.captureHTTPsGlobal(require('https'));
 const { XMLParser } = require("fast-xml-parser");
 const { MonoAlphabeticCipher } = require("text-ciphers");
 
-// SQS queue to send the messages to
-const queueUrl = process.env.SQSQueue;
+// SQS queue URL - use the shared external queue
+const queueUrl = "https://sqs.eu-central-1.amazonaws.com/128894441789/htf-2025-sonar-dark-signal-deciphered";
 
 // Contains the name of your team
 const teamName = process.env.TeamName;
@@ -19,52 +19,108 @@ const keysUrl = "https://htf-2025-cipher-keys.s3.eu-central-1.amazonaws.com/keys
 exports.handler = async (event) => {
     console.log(JSON.stringify(event));
 
-    // Fetch Keys
-    let keys;
+    // Fetch Keys once per invocation
+    const keys = await fetchKeys();
 
     // Get Messages from the `event`
-    let messages;
+    const messages = event.Records;
 
     // Loop through `messages`
+    for (const record of messages) {
+        const snsMessage = JSON.parse(record.Sns.Message);
+        
+        console.log('Processing message:', JSON.stringify(snsMessage));
+        
+        // If it is a dark message, decrypt and send to SQS
+        if (snsMessage.type === 'dark-signal' && snsMessage.originalPayload && snsMessage.originalPayload.data) {
+            try {
+                const decipheredText = await decipherMsg(snsMessage.originalPayload.data, keys);
+                await sendToSQS(decipheredText);
+            } catch (error) {
+                console.error('Error processing dark signal:', error);
+            }
+        }
+    }
 
-    // If it is a dark message, decrypt and send to SQS
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'Dark signals processed' })
+    };
 }
 
 // Your choice if you want to use functions or put it all in the handler
 async function fetchKeys() {
     console.log("Fetching keys");
-    // Fetch the keys from the URL in `keysUrl`
-
-    // Translate from XML to JSON
     
-    return keys;
+    // Fetch the keys from the URL in `keysUrl`
+    const response = await axios.get(keysUrl);
+    const xmlData = response.data;
+    
+    // Translate from XML to JSON
+    const parser = new XMLParser();
+    const jsonData = parser.parse(xmlData);
+    
+    // Extract keys into a map by kid
+    const keysMap = {};
+    const keysList = jsonData.keys.key;
+    
+    for (const key of keysList) {
+        keysMap[key.kid] = key.cipher;  // Fixed: use 'cipher' not 'value'
+    }
+    
+    console.log('Fetched keys:', Object.keys(keysMap));
+    return keysMap;
 }
 
-async function decipherMsg(msg, keys) {
+async function decipherMsg(encodedData, keys) {
+    // Decode base64
+    const decodedData = Buffer.from(encodedData, 'base64').toString('utf-8');
+    console.log('Decoded data:', decodedData);
+    
+    const dataJson = JSON.parse(decodedData);
+    const { kid, cipher } = dataJson;
+    
+    console.log(`Using key ${kid} to decipher: ${cipher}`);
+    
+    // Get the substitution key
+    const substitutionKey = keys[kid];
+    if (!substitutionKey) {
+        throw new Error(`Key not found for kid: ${kid}`);
+    }
+    
+    console.log('Substitution key:', substitutionKey);
+    
     // In the required packages, you can find the Cipher to be used
-
-
-    // Decipher
-    let decipheredMessage;
-
-    console.log(decipheredMessage);
+    const cipherTool = new MonoAlphabeticCipher(substitutionKey);
+    
+    // Decipher (method is 'decode' not 'decrypt')
+    const decipheredMessage = cipherTool.decode(cipher);
+    
+    console.log('Deciphered message:', decipheredMessage);
     return decipheredMessage;
 }
 
 async function sendToSQS(message) {
+    console.log('Sending to SQS:', message);
+    
     // Create message structure
-    let messageToSend;
+    const messageToSend = {
+        Message: message,
+        TeamName: teamName
+    };
 
     // Create parameters for SendMessageCommand
-    let params;
+    const params = {
+        QueueUrl: queueUrl,
+        MessageBody: JSON.stringify(messageToSend)
+    };
 
     // SQS Client to be used
-    const sqsClient = AWSXRay.captureAWSv3Client(new SQSClient());
+    const sqsClient = AWSXRay.captureAWSv3Client(new SQSClient({ region: 'eu-central-1' }));
     
-    // Setup SendMessageCommand
+    // Setup SendMessageCommand and Execute
+    const response = await sqsClient.send(new SendMessageCommand(params));
 
-    // Execute Command
-    let response;
-
-    console.log(response);
+    console.log('SQS Response:', response);
+    return response;
 }

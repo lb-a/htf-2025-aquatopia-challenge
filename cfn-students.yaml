@@ -10,7 +10,7 @@ Globals:
 
 Parameters:
   TeamName:
-    Default: <TEAMNAME>
+    Default: MaranzasDiBrugge
     Type: String
 
 Resources:
